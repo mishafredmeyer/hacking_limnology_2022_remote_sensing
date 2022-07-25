@@ -1,345 +1,175 @@
-//// Hacking Limnology Workshop, July 2022 
-
-//// Author: Victoria G Stengel, vstengel@usgs.gov 
-
-//// 
-
-//// WORKSHOP GOALS: 
-
-////// 1. Google Earth Engine (GEE) discussion. 
-
-////// 2. Find a bloom event in the news. 
-
-////// 3. Utilize multispectral imagery to qualitatively visualize the bloom event. 
-
-////// 4. Outcomes: Produce time series chart and export raster geovisualization. 
-
-//// 
-
-//// Introduction to GEE: https://developers.google.com/earth-engine 
-
-//// GEE reference and platform description: "Google Earth Engine: Planetary-scale geospatial analysis for everyone" Gorelick, 2017 (https://doi.org/10.1016/j.rse.2017.06.031) 
-
-//// GEE enabled a paradigm shift in geospatial analysis: "Transitioning from change detection to monitoring with remote sensing" (https://doi.org/10.1016/j.rse.2019.111558) 
-
-//// 
-
-////GEE cloud hosted DATA CATALOG: https://developers.google.com/earth-engine/datasets/catalog 
-
-////// Landsat and Sentinel-2 collections, Atmosphere correction collections, Dataset availability, Earth Engine Snippet, Description, Bands Image properties 
-
-////// ***HAPPY 50th BIRTHDAY, LANDSAT!!!*** 
-
-//// Awesome GEE community catalog example: https://samapriya.github.io/awesome-gee-community-datasets/projects/nhd/ 
-
-//// 
-
-//// GEE JavaScript API: https://developers.google.com/earth-engine/tutorials/tutorials 
-
-////// JS syntax: https://developers.google.com/earth-engine/guides/python_install#syntax 
-
-////// Image, and ImageCollection: https://developers.google.com/earth-engine/guides/ic_creating 
-
-////// Image visualization, composites, masking: https://developers.google.com/earth-engine/guides/image_visualization 
-
-////// Geometry: https://developers.google.com/earth-engine/guides/geometries 
-
-////// Feature, and FeatureCollection: https://developers.google.com/earth-engine/guides/features 
-
-////// Reducer: https://developers.google.com/earth-engine/guides/reducers_intro 
-
- 
-
- 
-
-////////////////////////////////////////////////////////////////////////////// 
-
-//// Find bloom event:  March 2018, Lake Pontchartrain, New Orleans, Louisiana, USA: https://twitter.com/cyanotracker/status/977049503386742784, https://www.nola.com/news/environment/article_cf24acb9-70d4-5fa6-9b29-1239b5684324.html 
-
-//// Add layer to map, center object: https://developers.google.com/earth-engine/apidocs/map-addlayer 
-
-//// Establish study area: 
-
-//// 1. digitize the AOI polygon 
-
-//// 2. import geometry; scale map 
-
-// Map.centerObject(AOI, 9) 
-
- 
-
-///////////////////////////////////////////////////////////////////////////// 
-
-//// Visualization of 2018 bloom event: 
-
-//// 1. Import a Landsat image  
-
-//// 2. Visualize image, add to map 
-
- 
-
-//// Import Landsat 8 image (because Landsat 8 was producing in 2018): https://developers.google.com/earth-engine/datasets/catalog/landsat-8 
-
-// var Landsat8_20180303 = ee.Image('LANDSAT/LC08/C01/T1_SR/LC08_022039_20180303') 
-
- 
-
-//// Create true color (RBG432) visualization for Landsat 8 imagery 
-
-// var L8_truecolorvis = {bands: ['B4','B3','B2'], min: 0, max: 3000, gamma: 1.4,}; 
-
- 
-
-//// Add image as layer to map  
-
-// Map.addLayer(Landsat8_20180303,  L8_truecolorvis, 'True color Landsat 8'); 
-
- 
-
- 
-
-///////////////////////////////////////////////////////////////////////////// 
-
-//// NDCI time series chart: 
-
-//// 1. Compute spectral indices 
-
-//// 2. Create Sentinel 2 cloud mask 
-
-//// 3. Create dynamic water mask  
-
-//// 4. Import Sentinel 2 image collection, apply filters, indecies, and masks to image collection 
-
-//// 6. Visualize image, add to map 
-
-//// 5. Produce time series for mean NDCI at point location. 
-
- 
-
-//// Function to calculate spectral indices  
-
-//  var indices = function(image) { 
-
-  //// GEE Normalized Difference: https://developers.google.com/earth-engine/apidocs/ee-image-normalizeddifference 
-
-  //// Normalized Difference Water Index (NDWI): https://custom-scripts.sentinel-hub.com/custom-scripts/sentinel-2/ndwi/# 
-
-//  var NDWI = image.normalizedDifference(['B3','B8']).rename('ndwi'); 
-
-  //// Normalized Difference Chlorophyll Index (NDCI): https://custom-scripts.sentinel-hub.com/custom-scripts/sentinel-2/ndci/# 
-
-  //// Mishra and Mishra, 2012 (https://doi.org/10.1016/j.rse.2011.10.016); Beck, 2016 (https://doi.org/10.1016/j.rse.2016.03.002) 
-
-//   var NDCI = image.normalizedDifference(['B5','B4']).rename('ndci');  
-
-  //// alternate way to compute index   
-
-  //// var NDCI = img.expression( 
-
-  ////   '(REONE-RED)/(REONE+RED)', { 
-
-  ////      'REONE': img.select('B5'), 
-
-  ////      'RED': img.select('B4'), 
-
-  ////}).rename('ndci'); 
-
- 
-
-//  return image 
-
-//    .addBands(NDWI) 
-
-//    .addBands(NDCI); 
-
-//}; 
-
- 
-
-//// Function to mask clouds using the Sentinel 2 QA band (https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR) 
-
-//function maskS2clouds(image) { 
-
-//  var qa = image.select('QA60'); 
-
- 
-
-  // Bits 10 and 11 are clouds and cirrus, respectively. 
-
-//  var cloudBitMask = 1 << 10; 
-
-//  var cirrusBitMask = 1 << 11; 
-
- 
-
-  // Both flags should be set to zero, indicating clear conditions. 
-
-//  var mask = qa.bitwiseAnd(cloudBitMask).eq(0) 
-
-//      .and(qa.bitwiseAnd(cirrusBitMask).eq(0)); 
-
- 
-
-//  return image.updateMask(mask).divide(10000); 
-
-//} 
-
- 
-
-//// Function to calculate dynamic water mask using NDWI 
-
-//function watermask(image) { 
-
-// var ndwimask = image.select('ndwi').gte(0) 
-
-//  return image.updateMask(ndwimask); 
-
-// } 
-
- 
-
-//// Import Sentinel-2 Surface Reflectance image collection (modified from: https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR) 
-
-// var dataset = ee.ImageCollection('COPERNICUS/S2') 
-
-                  //// Filter date range 
-
-//                  .filterDate('2018-03-21', '2022-12-31') 
-
-                  //// Filter cloud percentage in image metadata 
-
-//                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 50)) 
-
-                  //// Filter bounds by study area 
-
-//                  .filterBounds(AOI) 
-
-                  //// Map cloud mask function 
-
-//                  .map(maskS2clouds) 
-
-                  //// Map indices function 
-
-//                  .map(indices) 
-
-                  //// Map water mask function 
-
-//                  .map(watermask); 
-
- 
-
- 
-
- 
-
- 
-
-//// Import single Sentinel 2 image (https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2) 
-
-// var S2_20180322 = ee.Image('COPERNICUS/S2/20180322T163939_20180322T164513_T15RYP') 
-
- 
-
-//// Visualize image, add to map 
-
-// Map.addLayer(S2_20180322, {bands: ['B8', 'B4', 'B3'], max: 4000}, 'S2') 
-
- 
-
-//// Extract and print first image in image collection 
-
-// var Recent_S2 = dataset.limit(1, 'system:time_start').first(); 
-
-// print (Recent_S2, 'Latest true color mosaic') 
-
- 
-
-//// Visualize index image, with cloud and water masking applied 
-
-// var S2_CHLvis = {bands:['ndci'], min:-1, max:1, palette:['darkblue', 'DodgerBlue', 'cyan','YellowGreen','GreenYellow', 'orange']}; 
-
- 
-
-//// Add to map 
-
-// Map.addLayer(Recent_S2, S2_CHLvis, 'S2 NDCI'); 
-
- 
-
-//// Add image 
-
-//// Chart: https://developers.google.com/earth-engine/guides/charts_overview 
-
-//// Create a chart of NDVI over time (https://developers.google.com/earth-engine/apidocs/ui-chart-image-series) 
-
-//// Create variable with 'ncdi' band selected from image collection variable 
-
-//  var NDCIimage = dataset.select(['ndci']); 
-
-   
-
-//// Create time series chart with reducer to extract mean chlorophyll for the 500m zone around point feature   
-
-//// Digitize the point feature 
-
-//  var NDCIChart = ui.Chart.image.series(NDCIimage, point, ee.Reducer.mean(), 500, 'system:index'); 
-
- 
-
-//// Chart parameters 
-
-//  NDCIChart.setOptions({ 
-
-//    title: 'Time series for S2 collection', 
-
-//    vAxis: {title: 'Normalized Difference Chlorophyll Index (NDCI) value'}, 
-
-//    hAxis: {title: 'Date', format: 'MM-yy', gridlines: {count: 7}}, 
-
-//    series: { 
-
-//      0: { 
-
-//       color: 'black', 
-
-//       lineWidth: 0, 
-
-//       pointsVisible: true, 
-
-//       pointSize: 2, 
-
-//     } 
-
-//    }, 
-
-//    legend: {position: 'left'}, 
-
-//  }); 
-
- 
-
-//// Print chart   
-
-//print (NDCIChart); 
-
- 
-
-/////////////////////////////////////////////////////////////////////////////////   
-
-//// Export raster, video: https://developers.google.com/earth-engine/guides/exporting 
-
-//// Export bloom event image: 
-
-//// 1. Export geotiff to google drive 
-
- 
-
-//Export.image.toDrive({ 
-
-//  image: Landsat8_20180303, 
-
-//  description: 'Landsat8_ Pontchartrain_20180303', 
-
-//  region: AOI, 
-
-//}); 
+//// Hacking Limnology Workshop, July 2022
+//// Author: Victoria G Stengel, vstengel@usgs.gov
+////
+//// WORKSHOP GOALS:
+////// 1. Google Earth Engine (GEE) discussion.
+////// 2. Find a bloom event in the news.
+////// 3. Utilize multispectral imagery to qualitatively visualize the bloom event.
+////// 4. Outcomes: Produce time series chart and export raster data.
+////
+//// Introduction to GEE: https://developers.google.com/earth-engine
+//// GEE reference and platform description: "Google Earth Engine: Planetary-scale geospatial analysis for everyone" Gorelick, 2017 (https://doi.org/10.1016/j.rse.2017.06.031)
+//// GEE enabled a paradigm shift in geospatial analysis: "Transitioning from change detection to monitoring with remote sensing" (https://doi.org/10.1016/j.rse.2019.111558)
+////
+////GEE cloud hosted DATA CATALOG: https://developers.google.com/earth-engine/datasets/catalog
+////// Landsat and Sentinel-2 collections, Atmosphere correction collections, Dataset availability, Earth Engine Snippet, Description, Bands Image properties
+////// ***HAPPY 50th BIRTHDAY, LANDSAT!!!***
+//// Awesome GEE community catalog example: https://samapriya.github.io/awesome-gee-community-datasets/projects/nhd/
+////
+//// GEE JavaScript API: https://developers.google.com/earth-engine/tutorials/tutorials
+////// JS syntax: https://developers.google.com/earth-engine/guides/python_install#syntax
+////// Image, and ImageCollection: https://developers.google.com/earth-engine/guides/ic_creating
+////// Image visualization, composites, masking: https://developers.google.com/earth-engine/guides/image_visualization
+////// Geometry: https://developers.google.com/earth-engine/guides/geometries
+////// Feature, and FeatureCollection: https://developers.google.com/earth-engine/guides/features
+////// Reducer: https://developers.google.com/earth-engine/guides/reducers_intro
+
+
+//////////////////////////////////////////////////////////////////////////////
+//// Add layer to map, center object: https://developers.google.com/earth-engine/apidocs/map-addlayer
+//// Find bloom event:  March 2018, Lake Pontchartrain, New Orleans, Louisiana, USA: https://twitter.com/cyanotracker/status/977049503386742784, https://www.nola.com/news/environment/article_cf24acb9-70d4-5fa6-9b29-1239b5684324.html
+//// Establish study area:
+//// 1. digitize the AOI polygon
+//// 2. import geometry; scale map
+ Map.centerObject(AOI, 9)
+
+/////////////////////////////////////////////////////////////////////////////
+//// Visualization of 2018 bloom event:
+//// 1. Import a Landsat image from March 3, 2018, Lake Pontchartrain, New Orleans, Louisiana, USA: https://twitter.com/cyanotracker/status/977049503386742784, https://www.nola.com/news/environment/article_cf24acb9-70d4-5fa6-9b29-1239b5684324.html
+//// 2. Visualize image, add to map
+
+//// Import Landsat 8 image (because Landsat 8 was producing in 2018): https://developers.google.com/earth-engine/datasets/catalog/landsat-8
+ var Landsat8_20180303 = ee.Image('LANDSAT/LC08/C01/T1_SR/LC08_022039_20180303')
+
+//// Create true color (RBG432) visualization for Landsat 8 imagery
+ var L8_truecolorvis = {bands: ['B4','B3','B2'], min: 0, max: 3000, gamma: 1.4,};
+
+//// Add image as layer to map 
+ Map.addLayer(Landsat8_20180303,  L8_truecolorvis, 'True color Landsat 8');
+
+
+/////////////////////////////////////////////////////////////////////////////
+//// NDCI time series chart:
+//// 1. Compute spectral indices
+//// 2. Create Sentinel 2 cloud mask
+//// 3. Create dynamic water mask 
+//// 4. Import Sentinel 2 image collection, apply filters, indices, and masks to image collection
+//// 6. Visualize image, add to map
+//// 5. Produce time series for mean NDCI at point location.
+
+//// Function to calculate spectral indices 
+  var indices = function(image) {
+  //// GEE Normalized Difference: https://developers.google.com/earth-engine/apidocs/ee-image-normalizeddifference
+  //// Normalized Difference Water Index (NDWI): https://custom-scripts.sentinel-hub.com/custom-scripts/sentinel-2/ndwi/#
+  var NDWI = image.normalizedDifference(['B3','B8']).rename('ndwi');
+  //// Normalized Difference Chlorophyll Index (NDCI): https://custom-scripts.sentinel-hub.com/custom-scripts/sentinel-2/ndci/#
+  //// Mishra and Mishra, 2012 (https://doi.org/10.1016/j.rse.2011.10.016); Beck, 2016 (https://doi.org/10.1016/j.rse.2016.03.002)
+   var NDCI = image.normalizedDifference(['B5','B4']).rename('ndci'); 
+  //// alternate way to compute index  
+  //// var NDCI = img.expression(
+  ////   '(REONE-RED)/(REONE+RED)', {
+  ////      'REONE': img.select('B5'),
+  ////      'RED': img.select('B4'),
+  ////}).rename('ndci');
+
+  return image
+    .addBands(NDWI)
+    .addBands(NDCI);
+};
+
+//// Function to mask clouds using the Sentinel 2 QA band (https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR)
+function maskS2clouds(image) {
+  var qa = image.select('QA60');
+
+//// Bits 10 and 11 are clouds and cirrus, respectively.
+  var cloudBitMask = 1 << 10;
+  var cirrusBitMask = 1 << 11;
+
+//// Both flags should be set to zero, indicating clear conditions.
+  var mask = qa.bitwiseAnd(cloudBitMask).eq(0)
+      .and(qa.bitwiseAnd(cirrusBitMask).eq(0));
+
+  return image.updateMask(mask).divide(10000);
+}
+
+//// Function to calculate dynamic water mask using NDWI
+function watermask(image) {
+  var ndwimask = image.select('ndwi').gte(0)
+  return image.updateMask(ndwimask);
+ }
+
+//// Import Sentinel-2 Surface Reflectance image collection (modified from: https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR)
+ var dataset = ee.ImageCollection('COPERNICUS/S2')
+                  //// Filter date range
+                  .filterDate('2018-03-21', '2022-12-31')
+                  //// Filter cloud percentage in image metadata
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 50))
+                  //// Filter bounds by study area
+                  .filterBounds(AOI)
+                  //// Map cloud mask function
+                  .map(maskS2clouds)
+                  //// Map indices function
+                  .map(indices)
+                  //// Map water mask function
+                  .map(watermask);
+
+
+
+
+//// Import single Sentinel 2 image (https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2)
+ var S2_20180322 = ee.Image('COPERNICUS/S2/20180322T163939_20180322T164513_T15RYP')
+
+//// Visualize image, add to map
+ Map.addLayer(S2_20180322, {bands: ['B8', 'B4', 'B3'], max: 4000}, 'S2')
+
+//// Extract and print first image in image collection
+ var First_S2 = dataset.limit(1, 'system:time_start').first();
+ print (First_S2, 'Latest true color mosaic')
+
+//// Visualize index image, with cloud and water masking applied
+ var S2_CHLvis = {bands:['ndci'], min:-1, max:1, palette:['darkblue', 'DodgerBlue', 'cyan','YellowGreen','GreenYellow', 'orange']};
+
+//// Add to map
+ Map.addLayer(First_S2, S2_CHLvis, 'S2 NDCI');
+
+//// Add image
+//// Chart: https://developers.google.com/earth-engine/guides/charts_overview
+//// Create a chart of NDVI over time (https://developers.google.com/earth-engine/apidocs/ui-chart-image-series)
+//// Create variable with 'ncdi' band selected from image collection variable
+  var NDCIimage = dataset.select(['ndci']);
+  
+//// Create time series chart with reducer to extract mean chlorophyll for the 500m zone around point feature  
+//// Digitize the point feature
+  var NDCIChart = ui.Chart.image.series(NDCIimage, point, ee.Reducer.mean(), 500, 'system:index');
+
+//// Chart parameters
+  NDCIChart.setOptions({
+    title: 'Time series for S2 collection',
+    vAxis: {title: 'Normalized Difference Chlorophyll Index (NDCI) value'},
+    hAxis: {title: 'Date', format: 'MM-yy', gridlines: {count: 7}},
+    series: {
+      0: {
+       color: 'black',
+       lineWidth: 0,
+       pointsVisible: true,
+       pointSize: 2,
+     }
+    },
+    legend: {position: 'left'},
+  });
+
+//// Print chart  
+print (NDCIChart);
+
+/////////////////////////////////////////////////////////////////////////////////  
+//// Export raster, video: https://developers.google.com/earth-engine/guides/exporting
+//// Export bloom event image:
+//// 1. Export geotiff to google drive
+//// Note: beware of data type inconsistencies when mapping indices to image collections, and exporting images.
+
+// Export the image, specifying the CRS, transform, and region.
+Export.image.toDrive({
+  image: First_S2,
+  description: 'Sentinel2_NDCI_20180322',
+  region: AOI
+});
